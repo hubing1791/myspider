@@ -1,14 +1,45 @@
-# -*- coding: utf-8 -*-
-
 # Define here the models for your spider middleware
 #
 # See documentation in:
-# https://doc.scrapy.org/en/latest/topics/spider-middleware.html
+# https://docs.scrapy.org/en/latest/topics/spider-middleware.html
+import random
+from scrapy.conf import settings
+import logging
+import time
+
+# useful for handling different item types with a single interface
+#from itemadapter import ItemAdapter
 
 from scrapy import signals
+from scrapy.downloadermiddlewares.useragent import UserAgentMiddleware
 
 
-class MyspiderSpiderMiddleware(object):
+class MyUserAgentMiddleware(UserAgentMiddleware):
+    '''
+    设置User-Agent
+    '''
+
+    def __init__(self, user_agent):
+        self.user_agent = user_agent
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls(
+            user_agent=crawler.settings.get('MY_USER_AGENT')
+        )
+
+    def process_request(self, request, spider):
+        agent = random.choice(self.user_agent)
+        request.headers['User-Agent'] = agent
+
+
+class ProxyMiddleware(object):
+    @staticmethod
+    def process_request(request, spider):
+        request.meta['proxy'] = settings.get('HTTP_PROXY')
+
+
+class MytorspiderSpiderMiddleware:
     # Not all methods need to be defined. If a method is not defined,
     # scrapy acts as if the spider middleware does not modify the
     # passed objects.
@@ -31,7 +62,7 @@ class MyspiderSpiderMiddleware(object):
         # Called with the results returned from the Spider, after
         # it has processed the response.
 
-        # Must return an iterable of Request, dict or Item objects.
+        # Must return an iterable of Request, or item objects.
         for i in result:
             yield i
 
@@ -39,8 +70,7 @@ class MyspiderSpiderMiddleware(object):
         # Called when a spider or process_spider_input() method
         # (from other spider middleware) raises an exception.
 
-        # Should return either None or an iterable of Response, dict
-        # or Item objects.
+        # Should return either None or an iterable of Request or item objects.
         pass
 
     def process_start_requests(self, start_requests, spider):
@@ -56,7 +86,7 @@ class MyspiderSpiderMiddleware(object):
         spider.logger.info('Spider opened: %s' % spider.name)
 
 
-class MyspiderDownloaderMiddleware(object):
+class MytorspiderDownloaderMiddleware:
     # Not all methods need to be defined. If a method is not defined,
     # scrapy acts as if the downloader middleware does not modify the
     # passed objects.
@@ -101,3 +131,20 @@ class MyspiderDownloaderMiddleware(object):
 
     def spider_opened(self, spider):
         spider.logger.info('Spider opened: %s' % spider.name)
+
+
+class RandomDelayMiddleware(object):
+    def __init__(self, delay):
+        self.delay = delay
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        delay = crawler.spider.settings.get("RANDOM_DELAY", 10)
+        if not isinstance(delay, int):
+            raise ValueError("RANDOM_DELAY need a int")
+        return cls(delay)
+
+    def process_request(self, request, spider):
+        delay = random.uniform(0, self.delay)
+        logging.debug("### random delay: %s s ###" % delay)
+        time.sleep(delay)
